@@ -60,12 +60,17 @@ async function run() {
         });
 
         // orders
+        app.get('/orders', async (req, res) => {
+            const orders = (await orderCollencton.find().toArray()).reverse();
+            res.send(orders);
+        });
         app.get('/orders/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const orders = (await orderCollencton.find(query).toArray()).reverse();
             res.send(orders);
-        })
+        });
+
         app.post('/order', async (req, res) => {
             const data = req.body;
             const result = await orderCollencton.insertOne(data);
