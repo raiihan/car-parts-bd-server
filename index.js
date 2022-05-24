@@ -44,6 +44,10 @@ async function run() {
         });
 
         // Review
+        app.get('/review', async (req, res) => {
+            const reviews = (await reviewCollencton.find().toArray()).reverse();
+            res.send(reviews);
+        });
 
         app.post('/review', async (req, res) => {
             const review = req.body;
