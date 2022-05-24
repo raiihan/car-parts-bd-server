@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -20,13 +20,28 @@ async function run() {
         await client.connect();
 
         const partsCollencton = client.db('carParts').collection('parts');
+        const orderCollencton = client.db('carParts').collection('orders');
         const reviewCollencton = client.db('carParts').collection('reviews');
 
+        // Parts
         app.get('/parts', async (req, res) => {
             const parts = await partsCollencton.find().toArray();
             res.send(parts)
-        })
+        });
 
+        app.get('/singleparts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const singleparts = await partsCollencton.findOne(query);
+            res.send(singleparts)
+        });
+
+        // orders
+        app.post('/order', async (req, res) => {
+            const data = req.body;
+            const result = await orderCollencton.insertOne(data);
+            res.send(result);
+        });
 
         // Review
 
