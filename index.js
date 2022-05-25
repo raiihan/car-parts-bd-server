@@ -3,6 +3,7 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -37,6 +38,7 @@ async function run() {
 
         const partsCollencton = client.db('carParts').collection('parts');
         const orderCollencton = client.db('carParts').collection('orders');
+        const paymentCollection = client.db('carParts').collection('payment');
         const reviewCollencton = client.db('carParts').collection('reviews');
 
         // authentication
@@ -45,6 +47,18 @@ async function run() {
             const accessJWT = jwt.sign(email, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1d' });
             res.send({ accessJWT });
         })
+
+        // Payment
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret })
+        });
 
         // Parts
         app.get('/parts', async (req, res) => {
@@ -59,6 +73,12 @@ async function run() {
             res.send(singleparts)
         });
 
+        app.post('/parts', async (req, res) => {
+            const parts = req.body;
+            const result = await partsCollencton.insertOne(parts);
+            res.send(result);
+        })
+
         // orders
         app.get('/orders', async (req, res) => {
             const orders = (await orderCollencton.find().toArray()).reverse();
@@ -70,6 +90,13 @@ async function run() {
             const orders = (await orderCollencton.find(query).toArray()).reverse();
             res.send(orders);
         });
+
+        app.get('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollencton.findOne(query);
+            res.send(order);
+        })
 
         app.post('/order', async (req, res) => {
             const data = req.body;
