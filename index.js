@@ -43,12 +43,6 @@ async function run() {
         const reviewCollection = client.db('carParts').collection('reviews');
 
         // authentication
-        // app.post('/createjwt', (req, res) => {
-        //     const email = req.body;
-        //     const accessJWT = jwt.sign(email, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1d' });
-        //     res.send({ accessJWT });
-        // })
-
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email;
             const user = req.body;
@@ -58,8 +52,43 @@ async function run() {
                 $set: user,
             };
             const result = await userCollection.updateOne(filter, updateDoc, options);
-            const accessJWT = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1h' });
+            const accessJWT = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_KEY, { expiresIn: '1d' });
             res.send({ result, accessJWT });
+        });
+
+        app.get('/users', async (req, res) => {
+            const users = (await userCollection.find().toArray()).reverse();
+            res.send(users);
+        })
+
+        app.get('/user', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            res.send(user);
+        });
+        app.get('/user/:id', verifyJWToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const user = await userCollection.findOne(query);
+            res.send(user);
+        })
+
+        app.patch('/user/:id', async (req, res) => {
+            const id = req.params.id;
+            const data = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    name: data.name,
+                    education: data.education,
+                    linkedin: data.linkedin,
+                    phone: data.phone,
+                    location: data.location
+                }
+            }
+            const updateuser = await userCollection.updateOne(filter, updatedDoc);
+            res.send(updateuser);
         })
 
         // Payment
