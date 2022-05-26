@@ -56,7 +56,7 @@ async function run() {
             res.send({ result, accessJWT });
         });
 
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyJWToken, async (req, res) => {
             const users = (await userCollection.find().toArray()).reverse();
             res.send(users);
         })
@@ -72,7 +72,7 @@ async function run() {
             const query = { _id: ObjectId(id) };
             const user = await userCollection.findOne(query);
             res.send(user);
-        })
+        });
 
         app.patch('/user/:id', async (req, res) => {
             const id = req.params.id;
@@ -89,7 +89,17 @@ async function run() {
             }
             const updateuser = await userCollection.updateOne(filter, updatedDoc);
             res.send(updateuser);
-        })
+        });
+
+        app.put('/user/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const updateDoc = {
+                $set: { role: 'admin' },
+            };
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        });
 
         // Payment
         app.post('/create-payment-intent', async (req, res) => {
@@ -120,10 +130,17 @@ async function run() {
             const parts = req.body;
             const result = await partsCollection.insertOne(parts);
             res.send(result);
+        });
+
+        app.delete('/parts/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await partsCollection.deleteOne(filter);
+            res.send(result);
         })
 
         // orders
-        app.get('/orders', async (req, res) => {
+        app.get('/orders', verifyJWToken, async (req, res) => {
             const orders = (await orderCollection.find().toArray()).reverse();
             res.send(orders);
         });
