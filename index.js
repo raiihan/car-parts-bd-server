@@ -39,8 +39,21 @@ async function run() {
         const partsCollection = client.db('carParts').collection('parts');
         const userCollection = client.db('carParts').collection('users');
         const orderCollection = client.db('carParts').collection('orders');
-        const paymentCollection = client.db('carParts').collection('payment');
         const reviewCollection = client.db('carParts').collection('reviews');
+        const paymentCollection = client.db('carParts').collection('payments');
+
+        // payment 
+        app.post('/create-payment-intent', verifyJWToken, async (req, res) => {
+            const order = req.body;
+            const price = order.price;
+            const amount = parseInt(price) * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret });
+        })
 
         // authentication
         app.put('/user/:email', async (req, res) => {
@@ -90,28 +103,33 @@ async function run() {
             const updateuser = await userCollection.updateOne(filter, updatedDoc);
             res.send(updateuser);
         });
-
-        app.put('/user/admin/:email', async (req, res) => {
+        // Make admin
+        app.put('/user/admin/:email', verifyJWToken, async (req, res) => {
             const email = req.params.email;
-            const filter = { email: email };
-            const updateDoc = {
-                $set: { role: 'admin' },
-            };
-            const result = await userCollection.updateOne(filter, updateDoc);
-            res.send(result);
+            const requester = req.decoded.email;
+            const requesterAccount = await userCollection.findOne({ email: requester });
+            if (requesterAccount.role === 'admin') {
+                const filter = { email: email };
+                const updateDoc = {
+                    $set: { role: 'admin' },
+                }
+                const result = await userCollection.updateOne(filter, updateDoc);
+                res.send(result);
+            }
+            else {
+                return res.status(403).send({ message: 'Forbidden Access' });
+            }
+
         });
 
-        // Payment
-        app.post('/create-payment-intent', async (req, res) => {
-            const { price } = req.body;
-            const amount = price * 100;
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: amount,
-                currency: 'usd',
-                payment_method_types: ['card']
-            });
-            res.send({ clientSecret: paymentIntent.client_secret })
-        });
+        app.get('/admin/:email', verifyJWToken, async (req, res) => {
+            const email = req.params.email;
+            const user = await userCollection.findOne({ email: email });
+            const isAdmin = user.role === 'admin';
+            res.send({ admin: isAdmin });
+        })
+
+
 
         // Parts
         app.get('/parts', async (req, res) => {
@@ -170,6 +188,38 @@ async function run() {
             res.send(result);
         });
 
+        app.patch('/order/:id', verifyJWToken, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId,
+                    status: 'pending'
+                }
+            };
+            const result = await paymentCollection.insertOne(payment);
+            const paymentOrder = await orderCollection.updateOne(filter, updatedDoc);
+            res.send(updatedDoc);
+        });
+
+        app.patch('/orderstatus/:id', verifyJWToken, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: { status: 'shipped' }
+            };
+            const orderStatus = await orderCollection.updateOne(filter, updatedDoc);
+            res.send(orderStatus);
+        })
+
+        app.delete('/order/:id', verifyJWToken, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(filter);
+            res.send(result);
+        })
 
         // Review
         app.get('/review', async (req, res) => {
