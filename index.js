@@ -93,7 +93,6 @@ async function run() {
             const filter = { _id: ObjectId(id) };
             const updatedDoc = {
                 $set: {
-                    name: data.name,
                     education: data.education,
                     linkedin: data.linkedin,
                     phone: data.phone,
