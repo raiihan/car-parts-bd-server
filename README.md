@@ -7,3 +7,10 @@
 * I Json web token for verification
 * Implement Payment method I use Stripe
 * Deploy this site Heroku
+
+
+#
+
+### Admin Credentials
+Email:- admin@carpartsbd.com
+Password:- 123456
